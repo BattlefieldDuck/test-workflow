@@ -1,0 +1,106 @@
+name: "[windows] Test Bun install methods"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bun-powershell-install:
+    name: "Bun install via PowerShell (irm | iex)"
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Bun (PowerShell)
+        shell: powershell
+        run: |
+          powershell -NoProfile -ExecutionPolicy Bypass -Command "irm bun.sh/install.ps1 | iex"
+
+          # Persist bun path for next steps
+          $bunBin = Join-Path $env:USERPROFILE ".bun\bin"
+          if (Test-Path $bunBin) {
+            "$bunBin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+          }
+
+      - name: Verify bun
+        shell: powershell
+        run: |
+          bun --version
+          where.exe bun
+
+      - name: Run test script
+        shell: powershell
+        run: |
+          @"
+          console.log("install_method: powershell");
+          console.log("bun_version:", Bun.version);
+          "@ | Set-Content -Encoding utf8 test-bun.ts
+
+          bun run test-bun.ts
+
+  bun-npm-install:
+    name: "Bun install via npm -g"
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install Bun (npm -g)
+        shell: powershell
+        run: |
+          npm install -g bun
+
+      - name: Verify bun
+        shell: powershell
+        run: |
+          bun --version
+          where.exe bun
+
+      - name: Run test script
+        shell: powershell
+        run: |
+          @"
+          console.log("install_method: npm");
+          console.log("bun_version:", Bun.version);
+          "@ | Set-Content -Encoding utf8 test-bun.ts
+
+          bun run test-bun.ts
+
+  bun-setup-action:
+    name: "Bun install via oven-sh/setup-bun"
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Verify bun
+        shell: powershell
+        run: |
+          bun --version
+          where.exe bun
+
+      - name: Run test script
+        shell: powershell
+        run: |
+          @"
+          console.log("install_method: setup-bun");
+          console.log("bun_version:", Bun.version);
+          "@ | Set-Content -Encoding utf8 test-bun.ts
+
+          bun run test-bun.ts
